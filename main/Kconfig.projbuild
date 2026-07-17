@@ -1,14 +1,50 @@
 menu "Wisp Configuration"
 
+    choice WISP_WIFI_MODE
+        prompt "WiFi Mode"
+        default WISP_WIFI_MODE_AP
+        help
+            AP mode: relay creates its own hotspot (no external WiFi needed).
+            STA mode: relay connects to an existing WiFi network.
+
+    config WISP_WIFI_MODE_AP
+        bool "AP Mode (SoftAP)"
+    config WISP_WIFI_MODE_STA
+        bool "STA Mode (Connect to WiFi)"
+    endchoice
+
+    config WISP_AP_SSID
+        string "AP SSID"
+        default "Wisp-Relay"
+        depends on WISP_WIFI_MODE_AP
+        help
+            SSID for the relay's WiFi hotspot.
+
+    config WISP_AP_PASSWORD
+        string "AP Password"
+        default ""
+        depends on WISP_WIFI_MODE_AP
+        help
+            Password for the relay's WiFi hotspot. Empty = open network.
+
+    config WISP_AP_CHANNEL
+        int "AP Channel"
+        default 1
+        depends on WISP_WIFI_MODE_AP
+        help
+            WiFi channel for the AP.
+
     config WISP_WIFI_SSID
         string "WiFi SSID"
         default "your_ssid"
+        depends on WISP_WIFI_MODE_STA
         help
             WiFi network name to connect to.
 
     config WISP_WIFI_PASSWORD
         string "WiFi Password"
         default "your_password"
+        depends on WISP_WIFI_MODE_STA
         help
             WiFi network password.
 

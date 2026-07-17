@@ -102,7 +102,7 @@ static void cleanup_relay_resources(bool cleanup_rate_limiter, bool cleanup_stor
     }
 }
 
-static void start_relay_server(ip_event_got_ip_t *event)
+static void start_relay_server(esp_netif_ip_info_t *ip_info)
 {
     if (ws_server_is_running(&g_relay_ctx.ws_server)) {
         ESP_LOGI(TAG, "WebSocket server already running");
@@ -151,7 +151,7 @@ static void start_relay_server(ip_event_got_ip_t *event)
     ws_server_set_disconnect_cb(on_ws_disconnect);
 
     ESP_LOGI(TAG, "Relay listening on ws://" IPSTR ":%d",
-             IP2STR(&event->ip_info.ip), g_relay_ctx.config.port);
+             IP2STR(&ip_info->ip), g_relay_ctx.config.port);
 }
 
 static void sntp_sync_cb(struct timeval *tv)
@@ -186,10 +186,16 @@ static void wifi_event_handler(void *arg, esp_event_base_t event_base,
         ip_event_got_ip_t *event = (ip_event_got_ip_t *)event_data;
         ESP_LOGI(TAG, "Got IP: " IPSTR, IP2STR(&event->ip_info.ip));
         init_sntp();
-        start_relay_server(event);
+        start_relay_server(&event->ip_info);
+    } else if (event_base == WIFI_EVENT && event_id == WIFI_EVENT_AP_START) {
+        ESP_LOGI(TAG, "AP started, initializing relay...");
+        esp_netif_ip_info_t ap_ip;
+        esp_netif_get_ip_info(esp_netif_get_handle_from_ifkey("WIFI_AP_DEF"), &ap_ip);
+        start_relay_server(&ap_ip);
     }
 }
 
+#if CONFIG_WISP_WIFI_MODE_STA
 static void wifi_init_sta(void)
 {
     ESP_ERROR_CHECK(esp_netif_init());
@@ -216,7 +222,44 @@ static void wifi_init_sta(void)
     ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_STA, &wifi_config));
     ESP_ERROR_CHECK(esp_wifi_start());
 
-    ESP_LOGI(TAG, "WiFi STA initialized");
+    ESP_LOGI(TAG, "WiFi STA initialized — SSID: %s", CONFIG_WISP_WIFI_SSID);
+}
+#endif /* CONFIG_WISP_WIFI_MODE_STA */
+
+static void wifi_init_ap(void)
+{
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+    esp_netif_create_default_wifi_ap();
+
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK(esp_wifi_init(&cfg));
+
+    ESP_ERROR_CHECK(esp_event_handler_instance_register(WIFI_EVENT, ESP_EVENT_ANY_ID,
+                                                        &wifi_event_handler, NULL, NULL));
+
+    wifi_config_t wifi_config = {
+        .ap = {
+            .ssid = CONFIG_WISP_AP_SSID,
+            .ssid_len = strlen(CONFIG_WISP_AP_SSID),
+            .channel = CONFIG_WISP_AP_CHANNEL,
+            .password = CONFIG_WISP_AP_PASSWORD,
+            .max_connection = 8,
+            .authmode = WIFI_AUTH_OPEN,
+        },
+    };
+
+    /* Set auth mode based on password */
+    if (strlen(CONFIG_WISP_AP_PASSWORD) > 0) {
+        wifi_config.ap.authmode = WIFI_AUTH_WPA2_PSK;
+    }
+
+    ESP_ERROR_CHECK(esp_wifi_set_mode(WIFI_MODE_AP));
+    ESP_ERROR_CHECK(esp_wifi_set_config(WIFI_IF_AP, &wifi_config));
+    ESP_ERROR_CHECK(esp_wifi_start());
+
+    ESP_LOGI(TAG, "WiFi AP initialized — SSID: %s, channel %d, max_conn %d",
+             CONFIG_WISP_AP_SSID, CONFIG_WISP_AP_CHANNEL, wifi_config.ap.max_connection);
 }
 
 void app_main(void)
@@ -240,5 +283,11 @@ void app_main(void)
         ESP_LOGW(TAG, "Failed to create mem_mon task (stack=%d)", MEM_MONITOR_STACK_SIZE);
     }
 
+#if CONFIG_WISP_WIFI_MODE_AP
+    wifi_init_ap();
+#elif CONFIG_WISP_WIFI_MODE_STA
     wifi_init_sta();
+#else
+    #error "No WiFi mode selected"
+#endif
 }

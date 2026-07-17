@@ -32,8 +32,8 @@ nostr_relay_error_t router_parse(const char *json, size_t len, router_msg_t *out
 
         case NOSTR_CLIENT_MSG_REQ:
             out->type = ROUTER_MSG_REQ;
-            strncpy(out->data.req.sub_id, msg.data.req.subscription_id, ROUTER_MAX_SUB_ID);
-            out->data.req.sub_id[ROUTER_MAX_SUB_ID] = '\0';
+            snprintf(out->data.req.sub_id, ROUTER_MAX_SUB_ID + 1, "%s",
+                     msg.data.req.subscription_id);
             out->data.req.filters = msg.data.req.filters;
             out->data.req.filter_count = msg.data.req.filters_count;
             msg.data.req.filters = NULL;
@@ -42,8 +42,8 @@ nostr_relay_error_t router_parse(const char *json, size_t len, router_msg_t *out
 
         case NOSTR_CLIENT_MSG_CLOSE:
             out->type = ROUTER_MSG_CLOSE;
-            strncpy(out->data.close.sub_id, msg.data.close.subscription_id, ROUTER_MAX_SUB_ID);
-            out->data.close.sub_id[ROUTER_MAX_SUB_ID] = '\0';
+            snprintf(out->data.close.sub_id, ROUTER_MAX_SUB_ID + 1, "%s",
+                     msg.data.close.subscription_id);
             break;
 
         case NOSTR_CLIENT_MSG_AUTH:
