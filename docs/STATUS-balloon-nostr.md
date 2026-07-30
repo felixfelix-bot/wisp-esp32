@@ -56,7 +56,15 @@ Embedded Nostr relay for the balloon mesh stack. Provides:
 ### Blockers
 None.
 
+### Discovery Sync — 2026-07-30
+Received 3 findings from balloon-circuit-design (HARDWARE, PROTOCOL tags):
+- hub_board_f33 PCB finalized: clearance-aware routing, GND mesh, 0 unconnected, Gerbers + JLCPCB order package ready
+- Board uses ESP32-C3 Mini V1 footprint — matches my port target platform
+- SPI0 pins defined: pads 3-6 (SCK/MOSI/MISO/NSS) routed to LR2021 module
+- Impact on balloon-nostr: INFORMATIONAL ONLY. Relay is WiFi-only (WS server), uses no GPIO/SPI pins. Coexists with radio driver on same MCU. No firmware changes needed.
+- Platform confirmation: ESP32-C3 Mini V1 hardware now manufacturing-ready.
+
 ### Next Actions
 1. Run native test suite to verify C3 port compiles cleanly
-2. Hardware flash test on ESP32-C3
+2. Hardware flash test on ESP32-C3 (board pending manufacture)
 3. Write INTEGRATION-ASSESSMENT.md for orchestrator review
